@@ -241,7 +241,9 @@ button:focus-visible {
   font-size: 2rem;
   font-weight: 850;
   line-height: 1;
+  touch-action: none;
   user-select: none;
+  -webkit-user-drag: none;
 }
 
 .tile:active {
@@ -262,6 +264,16 @@ button:focus-visible {
 
 .tile.dragging {
   opacity: 0.5;
+}
+
+.tile.touch-dragging {
+  opacity: 0.9;
+  transition: none;
+}
+
+.tile.drop-target {
+  outline: 4px solid color-mix(in srgb, var(--accent) 54%, transparent);
+  outline-offset: -4px;
 }
 
 .hole {

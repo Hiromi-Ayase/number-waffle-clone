@@ -4,6 +4,7 @@ const SWAP_LIMIT = 20;
 const STORAGE_KEY = "number-waffle-stats";
 const LINE_ROWS = [0, 2, 4, 6];
 const LINE_COLS = [0, 2, 4, 6];
+const TOUCH_DRAG_THRESHOLD = 8;
 
 const boardElement = document.querySelector("#board");
 const movesLeftElement = document.querySelector("#moves-left");
@@ -32,6 +33,8 @@ const state = {
   solved: false,
   revealed: false,
   resultSaved: false,
+  pointerDrag: null,
+  ignoreNextClick: false,
   label: "",
   seed: "",
 };
@@ -274,6 +277,153 @@ function renderStats() {
   statStarsElement.textContent = stats.stars;
 }
 
+function getTileFromPoint(clientX, clientY) {
+  if (typeof document.elementFromPoint !== "function") {
+    return null;
+  }
+
+  const element = document.elementFromPoint(clientX, clientY);
+  if (!element || typeof element.closest !== "function") {
+    return null;
+  }
+
+  return element.closest(".tile");
+}
+
+function updatePointerDropTarget(clientX, clientY) {
+  const drag = state.pointerDrag;
+  if (!drag) {
+    return;
+  }
+
+  const target = getTileFromPoint(clientX, clientY);
+  const targetIndex = target ? Number(target.dataset.index) : NaN;
+  const isValidTarget =
+    target && targetIndex !== drag.source && !Number.isNaN(targetIndex) && isPlayableIndex(targetIndex);
+
+  if (drag.dropTarget && drag.dropTarget !== target) {
+    drag.dropTarget.classList.remove("drop-target");
+  }
+
+  drag.dropTarget = isValidTarget ? target : null;
+
+  if (drag.dropTarget) {
+    drag.dropTarget.classList.add("drop-target");
+  }
+}
+
+function cleanupPointerDrag(event) {
+  const drag = state.pointerDrag;
+  if (!drag) {
+    return null;
+  }
+
+  if (drag.dropTarget) {
+    drag.dropTarget.classList.remove("drop-target");
+  }
+
+  if (typeof drag.tile.releasePointerCapture === "function") {
+    try {
+      drag.tile.releasePointerCapture(event.pointerId);
+    } catch {
+      // Capture may already be released by the browser after pointer cancellation.
+    }
+  }
+
+  drag.tile.classList.remove("dragging", "touch-dragging");
+  drag.tile.style.pointerEvents = "";
+  drag.tile.style.transform = "";
+  drag.tile.style.zIndex = "";
+  state.pointerDrag = null;
+  return drag;
+}
+
+function beginPointerDrag(event, index, tile) {
+  if (state.solved || event.pointerType === "mouse") {
+    return;
+  }
+
+  state.pointerDrag = {
+    source: index,
+    tile,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    moved: false,
+    dropTarget: null,
+  };
+
+  if (typeof tile.setPointerCapture === "function") {
+    tile.setPointerCapture(event.pointerId);
+  }
+}
+
+function movePointerDrag(event) {
+  const drag = state.pointerDrag;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const dx = event.clientX - drag.startX;
+  const dy = event.clientY - drag.startY;
+  const distance = Math.hypot(dx, dy);
+
+  if (!drag.moved && distance < TOUCH_DRAG_THRESHOLD) {
+    return;
+  }
+
+  if (!drag.moved) {
+    drag.moved = true;
+    state.selected = null;
+    drag.tile.classList.add("dragging", "touch-dragging");
+    drag.tile.style.zIndex = "5";
+    drag.tile.style.pointerEvents = "none";
+  }
+
+  event.preventDefault();
+  drag.tile.style.transform = `translate(${dx}px, ${dy}px)`;
+  updatePointerDropTarget(event.clientX, event.clientY);
+}
+
+function endPointerDrag(event) {
+  const drag = state.pointerDrag;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  const target = drag.moved ? getTileFromPoint(event.clientX, event.clientY) : null;
+  const targetIndex = target ? Number(target.dataset.index) : NaN;
+  const shouldSwap =
+    drag.moved && targetIndex !== drag.source && !Number.isNaN(targetIndex) && isPlayableIndex(targetIndex);
+
+  cleanupPointerDrag(event);
+
+  if (!drag.moved) {
+    return;
+  }
+
+  event.preventDefault();
+  state.ignoreNextClick = true;
+
+  if (shouldSwap) {
+    swapTiles(drag.source, targetIndex);
+  } else {
+    statusLineElement.textContent = "タイルの上で離すと入れ替えられます。";
+    renderBoard();
+  }
+}
+
+function cancelPointerDrag(event) {
+  const drag = state.pointerDrag;
+  if (!drag || drag.pointerId !== event.pointerId) {
+    return;
+  }
+
+  cleanupPointerDrag(event);
+  state.ignoreNextClick = true;
+  renderBoard();
+}
+
 function renderBoard() {
   boardElement.innerHTML = "";
 
@@ -314,7 +464,17 @@ function renderBoard() {
       tile.classList.add("selected");
     }
 
-    tile.addEventListener("click", () => selectTile(index));
+    tile.addEventListener("click", () => {
+      if (state.ignoreNextClick) {
+        state.ignoreNextClick = false;
+        return;
+      }
+      selectTile(index);
+    });
+    tile.addEventListener("pointerdown", (event) => beginPointerDrag(event, index, tile));
+    tile.addEventListener("pointermove", movePointerDrag);
+    tile.addEventListener("pointerup", endPointerDrag);
+    tile.addEventListener("pointercancel", cancelPointerDrag);
     tile.addEventListener("dragstart", (event) => {
       state.dragIndex = index;
       tile.classList.add("dragging");
@@ -500,9 +660,11 @@ function startGame(seed, label) {
   state.solved = false;
   state.revealed = false;
   state.resultSaved = false;
+  state.pointerDrag = null;
+  state.ignoreNextClick = false;
   state.label = label;
   state.seed = seed;
-  statusLineElement.textContent = "2枚のタイルを選んで入れ替えます。";
+  statusLineElement.textContent = "2枚を選ぶか、タイルをドラッグして入れ替えます。";
   render();
 }
 
@@ -513,6 +675,8 @@ function retryGame() {
   state.solved = false;
   state.revealed = false;
   state.resultSaved = false;
+  state.pointerDrag = null;
+  state.ignoreNextClick = false;
   statusLineElement.textContent = "同じ盤面を最初からやり直します。";
   render();
 }

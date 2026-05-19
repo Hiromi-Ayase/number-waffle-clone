@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Number Waffle</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app" aria-labelledby="game-title">
+      <section class="game-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Daily number puzzle</p>
+            <h1 id="game-title">Number Waffle</h1>
+          </div>
+          <div class="top-actions" aria-label="ゲーム操作">
+            <button class="icon-button" id="theme-button" type="button" aria-label="テーマ切替" title="テーマ切替">
+              <span aria-hidden="true">◐</span>
+            </button>
+            <button class="icon-button" id="help-button" type="button" aria-label="遊び方" title="遊び方">
+              <span aria-hidden="true">?</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="score-strip" aria-label="進行状況">
+          <div class="score-item">
+            <strong id="moves-left">20</strong>
+            <span>残り手数</span>
+          </div>
+          <div class="score-item">
+            <strong id="correct-count">0</strong>
+            <span>正位置</span>
+          </div>
+          <div class="score-item">
+            <strong id="star-count">5</strong>
+            <span>スター</span>
+          </div>
+        </div>
+
+        <div class="board-frame">
+          <div class="board" id="board" role="grid" aria-label="Number Waffle board"></div>
+        </div>
+
+        <p class="status-line" id="status-line" aria-live="polite">2枚のタイルを選んで入れ替えます。</p>
+
+        <div class="control-row">
+          <button id="retry-button" type="button">リトライ</button>
+          <button id="new-button" type="button">新しい盤面</button>
+          <button id="share-button" type="button">結果コピー</button>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="補助情報">
+        <section class="side-section">
+          <h2>今日の盤面</h2>
+          <p id="puzzle-label">読み込み中</p>
+        </section>
+
+        <section class="side-section">
+          <h2>行と列</h2>
+          <div class="line-list" id="line-list"></div>
+        </section>
+
+        <section class="side-section">
+          <h2>統計</h2>
+          <dl class="stats-list">
+            <div>
+              <dt>プレイ</dt>
+              <dd id="stat-played">0</dd>
+            </div>
+            <div>
+              <dt>クリア</dt>
+              <dd id="stat-wins">0</dd>
+            </div>
+            <div>
+              <dt>合計スター</dt>
+              <dd id="stat-stars">0</dd>
+            </div>
+          </dl>
+        </section>
+      </aside>
+    </main>
+
+    <dialog class="modal" id="help-dialog">
+      <div class="modal-body">
+        <header class="modal-header">
+          <h2>遊び方</h2>
+          <button class="icon-button" id="close-help-button" type="button" aria-label="閉じる" title="閉じる">×</button>
+        </header>
+        <div class="rules">
+          <p>数字を入れ替えて、使われている4本の行と4本の列をそれぞれ 1 から 7 までの並びにします。</p>
+          <p>空白マスは使いません。緑のタイルは正しい位置です。小さな丸は、矢印で挟んだ2マスの正解時の合計を示します。</p>
+          <p>20手以内でクリアすると、残り手数がスターになります。15手クリアで満点です。</p>
+        </div>
+        <button id="solution-button" class="ghost-button" type="button">答えを表示</button>
+      </div>
+    </dialog>
+
+    <dialog class="modal" id="result-dialog">
+      <div class="modal-body">
+        <header class="modal-header">
+          <h2 id="result-title">クリア</h2>
+          <button class="icon-button" id="close-result-button" type="button" aria-label="閉じる" title="閉じる">×</button>
+        </header>
+        <p id="result-copy"></p>
+        <div class="result-stars" id="result-stars" aria-label="獲得スター"></div>
+        <div class="control-row">
+          <button id="result-share-button" type="button">結果コピー</button>
+          <button id="result-new-button" type="button">次の盤面</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
